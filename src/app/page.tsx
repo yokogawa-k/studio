@@ -27,20 +27,24 @@ export default function Home() {
       }
 
       const numSubnetsValue = parseInt(numSubnets, 10);
-      const subnetCidrMaskValue = parseInt(subnetCidrMask.slice(1), 10);
+      const subnetCidrMaskValue = subnetCidrMask;
 
       if (isNaN(numSubnetsValue) || numSubnetsValue <= 0) {
         throw new Error("Number of subnets must be a positive number.");
       }
 
-      if (isNaN(subnetCidrMaskValue) || subnetCidrMaskValue < 0 || subnetCidrMaskValue > 32) {
+      if (!subnetCidrMaskValue.startsWith('/') || isNaN(parseInt(subnetCidrMaskValue.slice(1), 10))) {
+          throw new Error(`Invalid CIDR mask format: ${subnetCidrMaskValue}`);
+      }
+
+      if (isNaN(parseInt(subnetCidrMaskValue.slice(1), 10)) || parseInt(subnetCidrMaskValue.slice(1), 10) < 0 || parseInt(subnetCidrMaskValue.slice(1), 10) > 32) {
         throw new Error("Subnet CIDR mask must be a number between 0 and 32.");
       }
 
       const vpcCalculatedResult = calculateCIDR(vpcCidr.split('/')[0], vpcCidr.split('/')[1]);
       setVpcResult(vpcCalculatedResult);
 
-      const calculatedSubnets = calculateSubnets(vpcCidr, numSubnetsValue, subnetCidrMask);
+      const calculatedSubnets = calculateSubnets(vpcCidr, numSubnetsValue, subnetCidrMaskValue);
       setSubnetResults(calculatedSubnets);
 
       setError(null);
