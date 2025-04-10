@@ -13,3 +13,4 @@ export function isValidCIDR(cidr: string): boolean {
   const cidrRegex = /^\/\d{1,2}$/;
   return cidrRegex.test(cidr);
 }
+

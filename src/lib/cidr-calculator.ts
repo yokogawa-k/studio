@@ -61,10 +61,6 @@ export function calculateSubnets(
   numSubnets: number,
   subnetCidrMask: string
 ): { cidr: string; totalAddresses: number }[] {
-  if (!isValidCIDR(subnetCidrMask)) {
-    throw new Error("Invalid subnet CIDR mask format");
-  }
-
   const vpcCidrParts = vpcCidr.split("/");
   const vpcIpAddress = vpcCidrParts[0];
   const vpcMask = parseInt(vpcCidrParts[1]);
@@ -72,6 +68,10 @@ export function calculateSubnets(
 
   if (!isValidIPv4(vpcIpAddress)) {
     throw new Error("Invalid VPC IPv4 address format");
+  }
+
+   if (isNaN(subnetMask) || subnetMask < 0 || subnetMask > 32) {
+    throw new Error("Subnet CIDR mask must be a number between 0 and 32.");
   }
 
   if (subnetMask <= vpcMask || subnetMask > 32) {
