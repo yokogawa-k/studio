@@ -1,4 +1,3 @@
-
 import { isValidIPv4, isValidCIDR } from "./validators";
 
 interface CIDRResult {
@@ -55,4 +54,48 @@ function ipFromBinary(ipBinary: number): string {
     (ipBinary >>> 8) & 255,
     ipBinary & 255,
   ].join(".");
+}
+
+export function calculateSubnets(
+  vpcCidr: string,
+  numSubnets: number,
+  subnetCidrMask: string
+): { cidr: string; totalAddresses: number }[] {
+  if (!isValidCIDR(subnetCidrMask)) {
+    throw new Error("Invalid subnet CIDR mask format");
+  }
+
+  const vpcCidrParts = vpcCidr.split("/");
+  const vpcIpAddress = vpcCidrParts[0];
+  const vpcMask = parseInt(vpcCidrParts[1]);
+  const subnetMask = parseInt(subnetCidrMask.slice(1));
+
+  if (!isValidIPv4(vpcIpAddress)) {
+    throw new Error("Invalid VPC IPv4 address format");
+  }
+
+  if (subnetMask <= vpcMask || subnetMask > 32) {
+    throw new Error("Subnet CIDR mask must be greater than VPC CIDR mask and less than or equal to 32");
+  }
+
+  const totalAvailableSubnets = 2 ** (subnetMask - vpcMask);
+  if (numSubnets > totalAvailableSubnets) {
+    throw new Error(`Number of subnets exceeds the maximum available (${totalAvailableSubnets})`);
+  }
+
+  const vpcIpParts = vpcIpAddress.split(".").map(Number);
+  let vpcIpBinary = 0;
+  for (let i = 0; i < 4; i++) {
+    vpcIpBinary = (vpcIpBinary << 8) + vpcIpParts[i];
+  }
+
+  const subnetResults: { cidr: string; totalAddresses: number }[] = [];
+  for (let i = 0; i < numSubnets; i++) {
+    const subnetAddressBinary = vpcIpBinary + (i * (2 ** (32 - subnetMask)));
+    const subnetAddress = ipFromBinary(subnetAddressBinary);
+    const totalAddresses = 2 ** (32 - subnetMask);
+    subnetResults.push({ cidr: `${subnetAddress}${subnetCidrMask}`, totalAddresses });
+  }
+
+  return subnetResults;
 }

@@ -5,24 +5,49 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { calculateCIDR } from "@/lib/cidr-calculator";
+import { calculateCIDR, calculateSubnets } from "@/lib/cidr-calculator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, AlertTriangle } from "lucide-react";
 
 export default function Home() {
-  const [ipAddress, setIpAddress] = useState("");
-  const [cidrMask, setCidrMask] = useState("");
-  const [result, setResult] = useState<ReturnType<typeof calculateCIDR> | null>(null);
+  const [vpcCidr, setVpcCidr] = useState("");
+  const [numSubnets, setNumSubnets] = useState("");
+  const [subnetCidrMask, setSubnetCidrMask] = useState("");
+
+  const [vpcResult, setVpcResult] = useState<ReturnType<typeof calculateCIDR> | null>(null);
+  const [subnetResults, setSubnetResults] = useState<
+    { cidr: string; totalAddresses: number }[] | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = () => {
     try {
-      const calculatedResult = calculateCIDR(ipAddress, cidrMask);
-      setResult(calculatedResult);
+      if (!vpcCidr || !numSubnets || !subnetCidrMask) {
+        throw new Error("Please fill in all fields.");
+      }
+
+      const numSubnetsValue = parseInt(numSubnets, 10);
+      const subnetCidrMaskValue = parseInt(subnetCidrMask.slice(1), 10);
+
+      if (isNaN(numSubnetsValue) || numSubnetsValue <= 0) {
+        throw new Error("Number of subnets must be a positive number.");
+      }
+
+      if (isNaN(subnetCidrMaskValue) || subnetCidrMaskValue < 0 || subnetCidrMaskValue > 32) {
+        throw new Error("Subnet CIDR mask must be a number between 0 and 32.");
+      }
+
+      const vpcCalculatedResult = calculateCIDR(vpcCidr.split('/')[0], vpcCidr.split('/')[1]);
+      setVpcResult(vpcCalculatedResult);
+
+      const calculatedSubnets = calculateSubnets(vpcCidr, numSubnetsValue, subnetCidrMask);
+      setSubnetResults(calculatedSubnets);
+
       setError(null);
     } catch (e: any) {
       setError(e.message);
-      setResult(null);
+      setVpcResult(null);
+      setSubnetResults(null);
     }
   };
 
@@ -30,9 +55,9 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center min-h-screen py-2 bg-secondary">
       <Card className="w-full max-w-md space-y-4 p-4">
         <CardHeader>
-          <CardTitle>CIDR Calculator</CardTitle>
+          <CardTitle>VPC CIDR Calculator</CardTitle>
           <CardDescription>
-            Calculate network details from an IP address and CIDR mask.
+            Calculate VPC and subnet details.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -45,49 +70,74 @@ export default function Home() {
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="ip-address">IP Address</Label>
+            <Label htmlFor="vpc-cidr">VPC CIDR</Label>
             <Input
               type="text"
-              id="ip-address"
-              placeholder="e.g., 192.168.1.0"
-              value={ipAddress}
-              onChange={(e) => setIpAddress(e.target.value)}
+              id="vpc-cidr"
+              placeholder="e.g., 10.0.0.0/16"
+              value={vpcCidr}
+              onChange={(e) => setVpcCidr(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="cidr-mask">CIDR Mask</Label>
+            <Label htmlFor="num-subnets">Number of Subnets</Label>
             <Input
-              type="text"
-              id="cidr-mask"
-              placeholder="e.g., /24"
-              value={cidrMask}
-              onChange={(e) => setCidrMask(e.target.value)}
+              type="number"
+              id="num-subnets"
+              placeholder="e.g., 4"
+              value={numSubnets}
+              onChange={(e) => setNumSubnets(e.target.value)}
             />
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor="subnet-cidr-mask">Subnet CIDR Mask</Label>
+            <Input
+              type="text"
+              id="subnet-cidr-mask"
+              placeholder="e.g., /24"
+              value={subnetCidrMask}
+              onChange={(e) => setSubnetCidrMask(e.target.value)}
+            />
+          </div>
+
           <Button onClick={handleSubmit} className="bg-primary text-primary-foreground hover:bg-primary/90">
             Calculate
           </Button>
 
-          {result && (
+          {vpcResult && subnetResults && (
             <div className="mt-4">
-              <h2 className="text-lg font-semibold mb-2">Results:</h2>
+              <h2 className="text-lg font-semibold mb-2">VPC Results:</h2>
               <ul className="list-disc pl-5 space-y-1">
                 <li>
-                  Network Address: <span className="font-medium">{result.networkAddress}</span>
+                  Network Address: <span className="font-medium">{vpcResult.networkAddress}</span>
                 </li>
                 <li>
-                  Broadcast Address: <span className="font-medium">{result.broadcastAddress}</span>
+                  Broadcast Address: <span className="font-medium">{vpcResult.broadcastAddress}</span>
                 </li>
                 <li>
-                  First Usable IP: <span className="font-medium">{result.firstUsableIp}</span>
+                  First Usable IP: <span className="font-medium">{vpcResult.firstUsableIp}</span>
                 </li>
                 <li>
-                  Last Usable IP: <span className="font-medium">{result.lastUsableIp}</span>
+                  Last Usable IP: <span className="font-medium">{vpcResult.lastUsableIp}</span>
                 </li>
                 <li>
-                  Total Addresses: <span className="font-medium">{result.totalAddresses}</span>
+                  Total Addresses: <span className="font-medium">{vpcResult.totalAddresses}</span>
                 </li>
               </ul>
+
+              <h2 className="text-lg font-semibold mt-4 mb-2">Subnet Results:</h2>
+              {subnetResults.length > 0 ? (
+                <ul className="list-decimal pl-5 space-y-1">
+                  {subnetResults.map((subnet, index) => (
+                    <li key={index}>
+                      Subnet {index + 1}: CIDR - <span className="font-medium">{subnet.cidr}</span>, Total Addresses -{" "}
+                      <span className="font-medium">{subnet.totalAddresses}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No subnets to display.</p>
+              )}
             </div>
           )}
         </CardContent>
