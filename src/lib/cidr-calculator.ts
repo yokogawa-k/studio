@@ -1,4 +1,4 @@
-import { isValidIPv4, isValidCIDR } from "./validators";
+import { isValidIPv4 } from "./validators";
 
 interface CIDRResult {
   networkAddress: string;
@@ -6,6 +6,11 @@ interface CIDRResult {
   firstUsableIp: string;
   lastUsableIp: string;
   totalAddresses: number;
+}
+
+function isValidCIDR(cidr: string): boolean {
+  const cidrRegex = /^\d{1,2}$/;
+  return cidrRegex.test(cidr) && parseInt(cidr) >= 0 && parseInt(cidr) <= 32;
 }
 
 export function calculateCIDR(ipAddress: string, cidrMask: string): CIDRResult {
@@ -17,7 +22,7 @@ export function calculateCIDR(ipAddress: string, cidrMask: string): CIDRResult {
     throw new Error(`Invalid CIDR mask format: ${cidrMask}`);
   }
 
-  const mask = parseInt(cidrMask.slice(1));
+  const mask = parseInt(cidrMask);
   if (mask < 0 || mask > 32) {
     throw new Error("CIDR mask must be between 0 and 32");
   }
@@ -68,18 +73,6 @@ export function calculateSubnets(
 
   if (!isValidIPv4(vpcIpAddress)) {
     throw new Error("Invalid VPC IPv4 address format");
-  }
-
-   if (!isValidCIDR(subnetCidrMask)) {
-    throw new Error(`Invalid CIDR mask format: ${subnetCidrMask}`);
-  }
-
-  if (isNaN(subnetMask) || subnetMask < 0 || subnetMask > 32) {
-    throw new Error("Subnet CIDR mask must be a number between 0 and 32.");
-  }
-
-  if (subnetMask <= vpcMask || subnetMask > 32) {
-    throw new Error("Subnet CIDR mask must be greater than VPC CIDR mask and less than or equal to 32");
   }
 
   const totalAvailableSubnets = 2 ** (subnetMask - vpcMask);
